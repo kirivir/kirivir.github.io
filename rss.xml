@@ -6,7 +6,19 @@
     <atom:link href="https://kirivir.github.io/rss.xml" rel="self" type="application/rss+xml"/>
     <description>有趣的算法分享，理性的工作感悟</description>
     <generator>Solo, v4.3.1, https://b3log.org/solo</generator>
-    <lastBuildDate>Sat, 09 Oct 2021 02:08:29 +0800</lastBuildDate>
+    <lastBuildDate>Sun, 10 Oct 2021 22:31:46 +0800</lastBuildDate>
     <language>zh-cn</language>
+    <item>
+      <title>从零开始掌握 tensorflow 算子开发</title>
+      <link>https://kirivir.github.io/articles/2021/10/10/1633876194557.html</link>
+      <description><![CDATA[<p>说起神经网络模型的编程框架，google 开源的 tensorflow 可以说是最主流的神经网络框架。得益于 tensorflow 对模型部署、模型压缩、多语言支持的一系列优点，在国内的工业界基本上都将 tensorflow 作为第一选择。tensorflow 作为一个通用框架，提供了丰富的算子以满足常规的模型开发需求，比如高层的 layer 模块提供封装好的卷积层，可以让大家在不需要了解内部实现细节的情况下能构建卷积神经网络。但是光了解怎么用，却不知其所以然只能说熟练掌握 tensorflow 的使用，而不是掌握 tensorflow 的开发。</p>]]></description>
+      <author>KIRI</author>
+      <guid>https://kirivir.github.io/articles/2021/10/10/1633876194557.html</guid>
+      <category>network</category>
+      <category>machinelearning</category>
+      <category>机器学习</category>
+      <category>tensorflow</category>
+      <pubDate>Sun, 10 Oct 2021 22:30:53 +0800</pubDate>
+    </item>
   </channel>
 </rss>
