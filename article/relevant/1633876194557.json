@@ -1,1 +1,1 @@
-{"relevantArticles":[]}
+{"relevantArticles":[{"articleTitle":"从零开始掌握 tensorflow 算子开发 (1)：tensorflow 架构以及编译构建","articleAbstractText":"作为算子开发教程的第一篇，我们首先简单介绍 Tensorflow 的架构以及的算子 (Operator) 在 Tensorflow 的计算图扮演的角色。在简单了解算子之后，我们会定义一个算子的 demo，但是在本文中我们暂时不关注算子怎么实现，而是介绍如何从 Tensorflow 源码编译构建属于自己的 Tensorflow Python 包。","articleStatus":0,"articlePermalink":"/articles/2021/10/20/1634668182447.html","articleImg1URL":"https://b3logfile.com/file/2021/10/solo-fetchupload-2389301381001999932-51ae5b32.png?imageView2/2/w/1280/format/jpg/interlace/1/q/100"}]}

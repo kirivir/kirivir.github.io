@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+    <head>
+<meta charset="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/><meta name="theme-color" content="#3b3e43"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="format-detection" content="telephone=no"/><title>从零开始掌握 tensorflow 算子开发 (1)：tensorflow 架构以及编译构建 - KIRI 的个人博客</title><meta name="description" content="作为算子开发教程的第一篇，我们首先简单介绍 Tensorflow 的架构以及的算子 (Operator) 在 Tensorflow 的计算图扮演的角色。在简单了解算子之后，我们会定义一个算子的 demo，但是在本文中我们暂时不关注算子怎么实现，而是介绍如何从 Tensorflow 源码编译构建属于自己的 Tensorflow Python 包。"/><meta property="og:description" content="作为算子开发教程的第一篇，我们首先简单介绍 Tensorflow 的架构以及的算子 (Operator) 在 Tensorflow 的计算图扮演的角色。在简单了解算子之后，我们会定义一个算子的 demo，但是在本文中我们暂时不关注算子怎么实现，而是介绍如何从 Tensorflow 源码编译构建属于自己的 Tensorflow Python 包。"/>    <meta name="keywords" content="Python,C++,Java,ML,DL,NLP"/><link rel="dns-prefetch" href="https://kirivir.github.io"/><link rel="dns-prefetch" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="https://kirivir.github.io"><link rel="icon" type="image/png" href="https://static.b3log.org/images/brand/solo-128.png"/><link rel="apple-touch-icon" href="https://static.b3log.org/images/brand/solo-128.png"><link rel="shortcut icon" type="image/x-icon" href="https://static.b3log.org/images/brand/solo-128.png"><meta name="copyright" content="B3log"/><meta http-equiv="Window-target" content="_top"/><meta property="og:locale" content="zh_CN"/><meta property="og:title" content="从零开始掌握 tensorflow 算子开发 (1)：tensorflow 架构以及编译构建 - KIRI 的个人博客"/><meta property="og:site_name" content="KIRI 的个人博客"/><meta property="og:url"      content="https://kirivir.github.io/articles/2021/10/20/1634668182447.html?"/><meta property="og:image" content="https://static.b3log.org/images/brand/solo-128.png"/><link rel="search" type="application/opensearchdescription+xml" title="从零开始掌握 tensorflow 算子开发 (1)：tensorflow 架构以及编译构建 - KIRI 的个人博客" href="/opensearch.xml"><link href="https://kirivir.github.io/rss.xml" title="RSS" type="application/rss+xml" rel="alternate"/><link rel="manifest" href="https://kirivir.github.io/manifest.json">        <link rel="canonical" href="https://kirivir.github.io/articles/2021/10/20/1634668182447.html">            <link rel="stylesheet"
+                  href="https://kirivir.github.io/skins/Finding/css/base.css?1633869808677"/>
+            <link rel="prev" title="从零开始掌握 tensorflow 算子开发" href="https://kirivir.github.io/articles/2021/10/10/1633876194557.html">
+    <script src="https://cdn.jsdelivr.net/npm/vditor@3.8.4/dist/js/icons/ant.js" async="" id="vditorIconScript"></script>    </head>
+    <body class="nav-closed">
+        <div class="nav">
+<ul class="article__toc">
+        <li class="toc__h2">
+            <a href="#toc_h2_0">Tensorflow 架构介绍</a>
+        </li>
+        <li class="toc__h2">
+            <a href="#toc_h2_1">Tensorflow 源码结构</a>
+        </li>
+        <li class="toc__h2">
+            <a href="#toc_h2_2">Tensorflow 构建实践</a>
+        </li>
+</ul><div class="count">
+    <div class="fn-clear">
+    <a href="https://ld246.com/member/KIRI"
+       title="https://ld246.com/member/KIRI"
+       class="user__site"
+       target="_blank" rel="noopener nofollow">
+        <svg viewBox="0 0 32 32" width="100%" height="100%">
+            <path fill="#d23f31" style="fill: var(--color1, #d23f31)" d="M5.787 17.226h17.033l5.954 9.528c0.47 0.752 0.003 1.361-1.042 1.361h-15.141z"></path>
+            <path d="M10.74 3.927h17.033c1.045 0 1.512 0.609 1.042 1.361l-5.954 9.528h-19.872l6.379-10.209c0.235-0.376 0.849-0.681 1.372-0.681z"></path>
+            <path d="M2.953 17.226h2.839l6.804 10.889h-1.892c-0.523 0-1.137-0.305-1.372-0.681z"></path>
+        </svg>
+    </a>
+
+        <a href="https://github.com/kirivir"
+           title="https://github.com/kirivir"
+           class="user__site"
+           target="_blank" rel="noopener nofollow">
+            <svg viewBox="0 0 32 32" width="100%" height="100%">
+                <path d="M16 0.331c-8.836 0-16 7.163-16 16 0 7.069 4.585 13.067 10.942 15.182 0.8 0.148 1.094-0.347 1.094-0.77 0-0.381-0.015-1.642-0.022-2.979-4.452 0.968-5.391-1.888-5.391-1.888-0.728-1.849-1.776-2.341-1.776-2.341-1.452-0.993 0.11-0.973 0.11-0.973 1.606 0.113 2.452 1.649 2.452 1.649 1.427 2.446 3.743 1.739 4.656 1.33 0.143-1.034 0.558-1.74 1.016-2.14-3.554-0.404-7.29-1.777-7.29-7.907 0-1.747 0.625-3.174 1.649-4.295-0.166-0.403-0.714-2.030 0.155-4.234 0 0 1.344-0.43 4.401 1.64 1.276-0.355 2.645-0.532 4.005-0.539 1.359 0.006 2.729 0.184 4.008 0.539 3.054-2.070 4.395-1.64 4.395-1.64 0.871 2.204 0.323 3.831 0.157 4.234 1.026 1.12 1.647 2.548 1.647 4.295 0 6.145-3.743 7.498-7.306 7.895 0.574 0.497 1.085 1.47 1.085 2.963 0 2.141-0.019 3.864-0.019 4.391 0 0.426 0.288 0.925 1.099 0.768 6.354-2.118 10.933-8.113 10.933-15.18 0-8.837-7.164-16-16-16z"></path>
+            </svg>
+        </a>
+
+        <a href="https://www.zhihu.com/people/kiri-48-34"
+           title="https://www.zhihu.com/people/kiri-48-34"
+           target="_blank"
+           class="user__site" rel="noopener nofollow">
+            <svg viewBox="0 0 32 32" width="100%" height="100%">
+                <path d="M32 26.67c0 2.931-2.382 5.33-5.33 5.33h-21.339c-2.948 0-5.33-2.382-5.33-5.33v-21.339c0-2.948 2.382-5.33 5.33-5.33h21.339c2.948 0 5.33 2.382 5.33 5.33v21.339zM12.358 17.191h4.713c0-1.114-0.531-1.748-0.531-1.748h-4.079c0.103-2.005 0.189-4.576 0.223-5.536h3.874s-0.017-1.645-0.463-1.645h-6.822s0.411-2.142 0.96-3.085c0 0-2.040-0.12-2.742 2.605-0.686 2.725-1.731 4.354-1.851 4.662s0.6 0.137 0.891 0c0.309-0.137 1.663-0.617 2.057-2.537h2.108c0.034 1.2 0.12 4.885 0.086 5.536h-4.336c-0.6 0.446-0.823 1.748-0.823 1.748h4.971c-0.206 1.371-0.566 3.137-1.080 4.062-0.806 1.491-1.234 2.828-4.131 5.176 0 0-0.48 0.36 0.994 0.223 1.474-0.12 2.845-0.514 3.839-2.434 0.514-0.994 1.011-2.28 1.423-3.565l4.079 4.713s0.548-1.268 0.137-2.657l-3.034-3.394-1.028 0.754c0.291-0.994 0.497-1.988 0.548-2.845 0.017 0.017 0.017 0 0.017-0.034zM18.048 7.936v16.3h1.714l0.703 1.954 2.965-1.954h3.754v-16.3h-9.136zM25.401 22.487h-1.937l-2.434 1.611-0.566-1.611h-0.6v-12.735h5.553v12.735h-0.017z"></path>
+            </svg>
+        </a>
+    </div>
+    <span>
+        浏览数：
+        <span data-uvstaturl="https://kirivir.github.io">0</span>
+    </span> &nbsp; &nbsp;
+    <span>
+        文章总数：
+        2
+    </span><br/>
+</div>
+        </div>
+        <div class="site-wrapper">
+<header class="main-header" style='height:30vh;'>
+    <div class="fn-vertical">
+        <div class="main-header-content fn-wrap">
+            <h2 class="page-title">
+                <a href="https://kirivir.github.io">KIRI 的个人博客</a>
+                <small class="page-description"> &nbsp; 有趣的算法分享，理性的工作感悟</small>
+            </h2>
+            <h2 class="page-description">
+                每周一篇！
+
+<!-- 公告栏可使用 HTML、JavaScript，比如可以在此加入第三方统计 js -->
+            </h2>
+        </div>
+    </div>
+
+</header>
+            <main>
+                <article class="post fn-wrap">
+                    <header>
+                        <h2 class="post-title">
+                            <a rel="bookmark" href="https://kirivir.github.io/articles/2021/10/20/1634668182447.html">
+                                从零开始掌握 tensorflow 算子开发 (1)：tensorflow 架构以及编译构建
+                            </a>
+                        </h2>
+                        <section class="post-meta">
+                            <span>
+                                <a rel="tag" href="https://kirivir.github.io/tags/tensorflow">
+                                    tensorflow</a>,
+                            </span>
+                            <span>
+                                <a rel="tag" href="https://kirivir.github.io/tags/bazel">
+                                    bazel</a>,
+                            </span>
+                            <span>
+                                <a rel="tag" href="https://kirivir.github.io/tags/operator">
+                                    operator</a>,
+                            </span>
+                            <span>
+                                <a rel="tag" href="https://kirivir.github.io/tags/%E7%AE%97%E5%AD%90">
+                                    算子</a>
+                            </span>
+                            <time>2021-10-20</time>
+                        </section>
+                    </header>
+                    <section class="post-content post-content--article vditor-reset">
+                        <p>作为算子开发教程的第一篇，我们首先简单介绍 Tensorflow 的架构以及的算子 (Operator) 在 Tensorflow 的计算图扮演的角色。在简单了解算子之后，我们会定义一个算子的 demo，但是在本文中我们暂时不关注算子怎么实现，而是介绍如何从 Tensorflow 源码编译构建属于自己的 Tensorflow Python 包。</p>
+<h2 id="toc_h2_0">Tensorflow 架构介绍</h2>
+<p><img src="https://b3logfile.com/file/2021/10/solo-fetchupload-2389301381001999932-51ae5b32.png?imageView2/2/w/1280/format/jpg/interlace/1/q/100" alt="TensorFlow Layers"></p>
+<p>Tensorflow 是一个多语言的项目，Tensorflow 的底层功能主要由 C 与 C++ 实现，并在此基础上派生出了 Python api、Java api、C++ api。因为 Python 相较于 C++ 这种静态语言，能支持交互式编程写起来比较舒服，基本上都是 python 来写训练模型的脚本，而在线上部署模型的时候 C++、Java 使用的频率更多。等这个系列博客结束之后，有时间我们会继续介绍 Tensorflow 部署的相关内容。</p>
+<p>用 Tensorflow 训练模型的时候，在模型跑起来之前会看到这段日志：</p>
+<pre><code class="language-shell">[INFO] Graph was finalized
+</code></pre>
+<p>Tensorflow 定义了一个图，Tensorflow 实际运行的时候会先将 python 代码定义的网络结构解析为一个有向无环的计算图，通过这个计算图再调度计算资源运行模型。熟悉 Tensorflow 的读者通过 TensorBoard 可以浏览计算图的全貌，如下图所示：</p>
+<p><img src="https://b3logfile.com/file/2021/10/solo-fetchupload-3725507120017115130-ebee6367.png?imageView2/2/w/1280/format/jpg/interlace/1/q/100" alt="graphs_computation.png"></p>
+<p>这个计算图中的每一个节点，除了输入和输出节点外，每个中间的节点都代表对张量 (Tensor) 的一个操作。从 checkpoint 目录下的 graph.pbtxt 文件中，我们可以找到每一个节点的结构，例如一个矩阵乘法的节点：</p>
+<pre><code class="language-json">node {
+   name: "dnn/dense/MatMul"
+   op: "MatMul"
+   input: "dnn/input_layer/Reshape_143"
+   input: "dense/kernel/read"
+   attr {
+     key: "T"
+     value {
+       type: DT_FLOAT
+     }
+   }
+   省略 ...
+ }
+</code></pre>
+<p>我们可以看到每个节点有几个域：name、op、input、attr，其中 name、input、attr 都很容易理解，分别是节点的名字、输入 tensor 以及节点的额外属性，op 则是我们这个系列博客的主题——算子(Operator)，张量操作的具体实现。代码块中的 <em>MatMul</em> 就是矩阵乘法算子。如果我们在 Python 代码中使用了<code>tf.matmul</code> 函数，Tensorflow 就会在计算图中生成一个 <em>MatMul</em> 节点，在加载模型的时候，会对将计算图进行编译，此时根据节点的 op 域从运行时的上下文中调用 <em>MatMul</em> 算子对应的内核(kernel)，例如 cpu 环境下调用的是 <em>MatMul</em> 算子的 cpu 内核，gpu 环境下调用的是 gpu 内核。相当于算子类似 C++ 的抽象类，定义了张量操作的接口，kernel 是抽象类的实现。通过动态代理根据运行时的上下文采用不同的实现。下一小节介绍 Tensorflow 源码结构的时候会进一步反映算子和内核的差别。</p>
+<h2 id="toc_h2_1">Tensorflow 源码结构</h2>
+<p>在简单了解了 Tensorflow 的整体架构之后，我们来看看 Tensorflow 的源码结构，Tensorflow 使用了 <a href="https://bazel.build/" target="_blank">Bazel</a> 来组织项目。Bazel 是由 Google 开源的一个自动化构建系统，与之类似的有 Java 的 Maven。Bazel 通过 starlark(一种 Python 方言) 脚本来组织项目结构，约定项目根路径必须包含一个<code>WORKSPACE</code>文件作为根路径的标识。因此我们在 Tensorflow 源码的根路径上可以看到这个文件，里面从多个 .bzl 文件中加载执行了函数：</p>
+<pre><code class="language-python"># 定义项目名为 org_tensorflow
+workspace(name = "org_tensorflow")
+# 从当前依赖的 tensorflow 包的 workspace3.bzl 文件中导入 tf_workspace3 函数
+load("@//tensorflow:workspace3.bzl", "tf_workspace3") 
+# 调用tf_workspace3 函数
+tf_workspace3()
+...
+
+</code></pre>
+<p>在 Bazel 中同时也约定了项目的可独立编译的模块——包 (Package) 要包含一个 BUILD 文件。因此我们在 tensorflow 的根路径以及各个一级目录中都能看到一个 BUILD 文件。在 BUILD 文件中会定义多个规则 (rule)，这些规则组织起来形成编译链，来完成对整个项目的编译、打包、测试等一系列操作。XXX.bzl 文件相当于是 Bazel 脚本，方便规则复用以及简化 BUILD 文件结构，在下一篇博客中我们将详细介绍 Bazel 用法以及如何组织项目。</p>
+<p>除了 Bazel 相关的文件之外我们在根目录下可以看到 Tensorflow 目录，这个目录下包含了 Tensorflow 的源码。其中我们主要关注 core 目录。因为这个目录是 Tensorflow 的底层代码。其他诸如go、cc 之类的语言名目录包含的是各语言上层 API 源码，lite、security 等目录提供了一些额外的功能。</p>
+<p>在 core 目录下我们重点关注 ops 目录以及 kernels 目录。ops 目录声明了各种 TensorFlow 的算子。但是内核并不在这个目录下，而是在 kernels 目录下。以 BatchMatMul 算子为例，算子的定义在 ops/math_ops.cc 文件中，但是内核的实现在 kernels.matmul_op_real.cc 文件中，通过 <code>REGISTER_BATCH_MATMUL_TOUT_CPU</code> 宏以及 <code>BatchMatMulV2Op</code> 模板类来实现。在后续的博客中我们将解析 Tensorflow 算子的源码，带读者了解不同算子的实现。</p>
+<h2 id="toc_h2_2">Tensorflow 构建实践</h2>
+<p>「<a href="https://www.tensorflow.org/install/source?hl=zh-cn" target="_blank">从源代码构建</a>」 这篇官方文档其实已经写得很全面。我们简单实践一下 mac 上的 Tensorflow 的构建。构建的第一步是<a href="https://docs.bazel.build/versions/4.2.1/install.html" target="_blank">安装 bazel</a>，mac 使用 homebrew 安装即可:</p>
+<pre><code class="language-shell">/bin/bash -c "$(curl -fsSL \
+https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+brew install bazel
+bazel --version #打印 bazel 版本
+</code></pre>
+<p>接着进入到 Tensorflow 目录中，修改 Tensorflow 的 <code>.bazelversion</code> 文件设置 bazel 版本为你安装的版本。然后执行<code>./configure</code>命令运行构建前的配置选择，如果要编译 GPU 版本的话只能在 linux 系统下，而且需要先安装 <a href="https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions" target="_blank">cuda</a> 以及 <a href="https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html" target="_blank">cudnn</a>。</p>
+<p>最后执行<code>bazel build //tensorflow/tools/pip_package:build_pip_package</code>构建 Python 包。如果构建成功可以在 bazel-bin/tensorflow/tools/pip_package 目录下找到 build_pip_package 文件，然后执行以下命令：</p>
+<pre><code>./bazel-bin/tensorflow/tools/pip_package/build_pip_package --nightly_flag [输出目录]
+</code></pre>
+<p>在输出目录中会有一个 tensorflow 的 whl 包，使用 pip install 安装即可。</p>
+                        <div class="marginTop12">
+                            <hr>
+
+标题：从零开始掌握 tensorflow 算子开发 (1)：tensorflow 架构以及编译构建<br>
+作者：<a href="https://kirivir.github.io" target="_blank">KIRI</a><br>
+地址：<a href="https://kirivir.github.io/articles/2021/10/20/1634668182447.html" target="_blank">https://kirivir.github.io/articles/2021/10/20/1634668182447.html</a><br>
+
+<!-- 签名档内可使用 HTML、JavaScript -->
+<br>
+                        </div>
+                    </section>
+                    <footer class="fn__clear">
+                        <figure class="post-author">
+                            <a href="https://kirivir.github.io/authors/1633707737241"
+                               title="KIRI" alt="KIRI"
+                               style="background-image: url('https://b3logfile.com/avatar/1633684581136_1633713196694.png?imageView2/1/w/128/h/128/interlace/0/q/100')">
+                                <span class="fn-none">KIRI</span>
+                            </a>
+                        </figure>
+<div class="article__share"
+     data-title="从零开始掌握 tensorflow 算子开发 (1)：tensorflow 架构以及编译构建"
+     data-blogtitle="KIRI 的个人博客"
+     data-url="https://kirivir.github.io/articles/2021/10/20/1634668182447.html"
+     data-avatar="https://b3logfile.com/avatar/1633684581136_1633713196694.png?imageView2/1/w/128/h/128/interlace/0/q/100">
+    <span class="item" data-type="qqz">
+        <svg viewBox="0 0 32 32" width="100%" height="100%">
+            <path d="M22.824 13.989l-8.348 6.287s3.351 0.522 8.404 0.461l-0.23-1.040 7.2-6.549c0.132-0.12 0.183-0.312 0.129-0.487s-0.203-0.299-0.377-0.314l-9.492-0.856-3.708-9.213c-0.068-0.169-0.226-0.279-0.401-0.279s-0.333 0.11-0.401 0.279l-3.708 9.213-9.492 0.856c-0.174 0.015-0.323 0.139-0.377 0.314s-0.004 0.366 0.129 0.487l7.2 6.549-2.158 9.742c-0.040 0.178 0.026 0.365 0.168 0.474 0.142 0.107 0.331 0.115 0.481 0.021l8.158-5.165 8.158 5.165c0.070 0.045 0.147 0.066 0.225 0.066 0.090 0 0.18-0.029 0.256-0.086 0.142-0.109 0.208-0.295 0.168-0.474l-1.707-7.704c0.732-0.386 1.538-1.040 1.538-1.040s-3.195 1.638-14.664 0.838l8.312-6.325s-0.327-0.534-10.744-0.914c-0.697-0.026 8.493-1.83 15.281-0.305z"></path>
+        </svg>
+    </span>
+    <span class="item" data-type="wechat">
+        <svg viewBox="0 0 32 32" width="100%" height="100%">
+            <path d="M9.062 9.203c0-0.859-0.562-1.422-1.422-1.422-0.844 0-1.703 0.562-1.703 1.422 0 0.844 0.859 1.406 1.703 1.406 0.859 0 1.422-0.562 1.422-1.406zM20.672 17.125c0-0.562-0.562-1.125-1.422-1.125-0.562 0-1.125 0.562-1.125 1.125 0 0.578 0.562 1.141 1.125 1.141 0.859 0 1.422-0.562 1.422-1.141zM16.984 9.203c0-0.859-0.562-1.422-1.406-1.422-0.859 0-1.703 0.562-1.703 1.422 0 0.844 0.844 1.406 1.703 1.406 0.844 0 1.406-0.562 1.406-1.406zM26.906 17.125c0-0.562-0.578-1.125-1.422-1.125-0.562 0-1.125 0.562-1.125 1.125 0 0.578 0.562 1.141 1.125 1.141 0.844 0 1.422-0.562 1.422-1.141zM22.75 10.922c-0.359-0.047-0.719-0.063-1.094-0.063-5.375 0-9.625 4.016-9.625 8.953 0 0.828 0.125 1.625 0.359 2.375-0.359 0.031-0.703 0.047-1.063 0.047-1.422 0-2.547-0.281-3.969-0.562l-3.953 1.984 1.125-3.406c-2.828-1.984-4.531-4.547-4.531-7.656 0-5.391 5.094-9.625 11.328-9.625 5.563 0 10.453 3.391 11.422 7.953zM32 19.687c0 2.547-1.688 4.813-3.969 6.516l0.859 2.828-3.109-1.703c-1.141 0.281-2.281 0.578-3.406 0.578-5.391 0-9.625-3.688-9.625-8.219s4.234-8.219 9.625-8.219c5.094 0 9.625 3.688 9.625 8.219z"></path>
+        </svg>
+    </span>
+    <span class="item" data-type="weibo">
+        <svg viewBox="0 0 32 32" width="100%" height="100%">
+            <path d="M13.444 27.064c-5.3 0.525-9.875-1.875-10.219-5.35-0.344-3.481 3.675-6.719 8.969-7.244 5.3-0.525 9.875 1.875 10.212 5.35 0.35 3.481-3.669 6.725-8.963 7.244zM24.038 15.521c-0.45-0.137-0.762-0.225-0.525-0.819 0.512-1.287 0.563-2.394 0.006-3.188-1.038-1.481-3.881-1.406-7.137-0.037 0 0-1.025 0.444-0.762-0.363 0.5-1.613 0.425-2.956-0.356-3.737-1.769-1.769-6.469 0.069-10.5 4.1-3.013 3.006-4.763 6.212-4.763 8.981 0 5.287 6.787 8.506 13.425 8.506 8.7 0 14.494-5.056 14.494-9.069 0-2.431-2.044-3.806-3.881-4.375z"></path>
+            <path d="M29.819 5.833c-2.1-2.331-5.2-3.219-8.063-2.612v0c-0.663 0.144-1.081 0.794-0.938 1.45 0.144 0.662 0.788 1.081 1.45 0.938 2.038-0.431 4.238 0.2 5.731 1.856s1.9 3.913 1.256 5.888v0c-0.206 0.644 0.144 1.331 0.788 1.544 0.644 0.206 1.331-0.144 1.544-0.787v-0.006c0.9-2.762 0.331-5.938-1.769-8.269z"></path>
+            <path d="M26.588 8.752c-1.025-1.138-2.538-1.569-3.925-1.269-0.569 0.119-0.931 0.688-0.813 1.256 0.125 0.569 0.688 0.931 1.25 0.806v0c0.681-0.144 1.419 0.069 1.919 0.619 0.5 0.556 0.637 1.313 0.419 1.975v0c-0.175 0.55 0.125 1.15 0.681 1.331 0.556 0.175 1.15-0.125 1.331-0.681 0.438-1.356 0.163-2.906-0.863-4.037z"></path>
+            <path d="M13.738 20.771c-0.188 0.319-0.594 0.469-0.912 0.337-0.319-0.125-0.412-0.488-0.231-0.794 0.188-0.306 0.581-0.456 0.894-0.337 0.313 0.113 0.425 0.469 0.25 0.794zM12.044 22.933c-0.512 0.819-1.613 1.175-2.438 0.8-0.813-0.369-1.056-1.319-0.544-2.119 0.506-0.794 1.569-1.15 2.388-0.806 0.831 0.356 1.1 1.3 0.594 2.125zM13.969 17.146c-2.519-0.656-5.369 0.6-6.463 2.819-1.119 2.262-0.037 4.781 2.506 5.606 2.638 0.85 5.75-0.456 6.831-2.894 1.069-2.394-0.262-4.85-2.875-5.531z"></path>
+        </svg>
+    </span>
+    <span class="item" data-type="twitter">
+        <svg viewBox="0 0 32 32" width="100%" height="100%">
+            <path d="M32.003 6.075c-1.175 0.525-2.444 0.875-3.769 1.031 1.356-0.813 2.394-2.1 2.887-3.631-1.269 0.75-2.675 1.3-4.169 1.594-1.2-1.275-2.906-2.069-4.794-2.069-3.625 0-6.563 2.938-6.563 6.563 0 0.512 0.056 1.012 0.169 1.494-5.456-0.275-10.294-2.888-13.531-6.862-0.563 0.969-0.887 2.1-0.887 3.3 0 2.275 1.156 4.287 2.919 5.463-1.075-0.031-2.087-0.331-2.975-0.819 0 0.025 0 0.056 0 0.081 0 3.181 2.263 5.838 5.269 6.437-0.55 0.15-1.131 0.231-1.731 0.231-0.425 0-0.831-0.044-1.237-0.119 0.838 2.606 3.263 4.506 6.131 4.563-2.25 1.762-5.075 2.813-8.156 2.813-0.531 0-1.050-0.031-1.569-0.094 2.913 1.869 6.362 2.95 10.069 2.95 12.075 0 18.681-10.006 18.681-18.681 0-0.287-0.006-0.569-0.019-0.85 1.281-0.919 2.394-2.075 3.275-3.394z"></path>
+        </svg>
+    </span>
+    <span class="item__qr"></span>
+</div>                    </footer>
+                </article>
+                <div id="relevantArticles" class="fn-wrap"></div>
+                <div id="randomArticles" class="fn-wrap"></div>
+                    <div id="gitalk-container" style="margin-top: 100px" class="fn-wrap"></div>
+                    <div id="b3logsolocomments"></div>
+                    <div id="vcomment" style="margin-top: 100px" class="fn-wrap" data-name="KIRI" data-postId="1634668182447"></div>
+            </main>
+            <aside class="read-next">
+                <div class="read-next-story prev " style="background-image: url('https://kirivir.github.io/skins/Finding/images/preview.jpg')"
+                     onclick="window.location = 'https://kirivir.github.io/articles/2021/10/10/1633876194557.html'">
+                    <section class="post">
+                        <h2>从零开始掌握 tensorflow 算子开发</h2>
+                        <p>说起神经网络模型的编程框架，google 开源的 tensorflow 可以说是最主流的神经网络框架。得益于 tensorflow 对模型部署、模型压缩、多语言支持的一系列优点，在国内的工业界基本上都将 tensorflow 作为第一选择。tensorflow 作为一个通用框架，提供了丰富的算子以满足常规的模型开发需求，比如高层的 layer 模块提供封装好的卷积层，可以让大家在不需要了解内部实现细节的情况下能构建卷积神经网络。但是光了解怎么用，却不知其所以然只能说熟练掌握 tensorflow 的使用，而不是掌握 tensorflow 的开发。
+</p>
+                    </section>
+                </div>
+            </aside>
+<footer class="site-footer fn-clear">
+    &copy; 2021
+    <a href="https://kirivir.github.io">KIRI 的个人博客</a>
+    
+</footer>
+<script>
+  var Label = {
+    speech: true,
+    servePath: "https://kirivir.github.io",
+    staticServePath: "https://kirivir.github.io",
+    luteAvailable: false,
+    hljsStyle: 'github',
+    langLabel: "zh_CN",
+    version: "4.3.1",
+    staticSite: true,
+    showCodeBlockLn: false,
+    articleId: "1634668182447",
+  }
+</script>
+<script src="https://kirivir.github.io/skins/Finding/js/common.min.js?1633869808677"></script>
+
+
+<script type="text/javascript">
+    Util.addScript('https://kirivir.github.io/js/page.min.js?1633869808677', 'soloPageScript')
+    var page = new Page({
+        "commentContentCannotEmptyLabel": "评论不能为空",
+        "oId": "1634668182447",
+        "blogHost": "https://kirivir.github.io",
+        "randomArticles1Label": "随机阅读：",
+        "externalRelevantArticles1Label": "站外相关阅读："
+    });
+    $(document).ready(function () {
+        page.load();
+            page.tips.externalRelevantArticlesDisplayCount = "0";
+            page.loadRandomArticles();
+            page.loadRelevantArticles('1634668182447', '<h4>相关阅读：</h4>');
+                page.share();
+    });
+</script>
+        </div>
+    </body>
+</html>
+
+<!-- Generated by Latke (https://github.com/88250/latke) in 23ms, 2021/10/20 02:29:53 -->
